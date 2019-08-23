@@ -9,8 +9,8 @@ static __align(8) OS_STK         	TASK_GPS_STACK[TASK_GPS_STK_SIZE];
 #define  LED1                       1
 #define  LED2                       2
 
-#define  VALID_SNR                  20
-#define  VALID_SAT_COUNT            3
+#define  VALID_SNR                  35
+#define  VALID_SAT_COUNT            2
 struct_SatInfo ValidSatInfo[VALID_SAT_COUNT];
 u8 valid_sta_count = 0;
 u8 GSAMode[2];
@@ -119,30 +119,39 @@ void LedCtrl(u8 led,u8 onoff){
 			}
 			break;
 		case LED2:
+			if(onoff) {
+				GPIO_ResetBits(GPIOB , GPIO_Pin_13);  //LED-ON
+			} else {
+				GPIO_SetBits(GPIOB , GPIO_Pin_13);	  //LED-OFF
+			}
 			break;
 	}
 }
 void Timer1S_CallBack(OS_TMR *ptmr, void *parg) {
 	u8 i = 0;
 	static u8 LedState = 0;
+	static u8 cnt = 0;
 	
 	Log("1S GpsReportRate=%d,%c%c",GpsReportRate,GSAMode[0],GSAMode[1]);
-	//有效定位,led2闪烁
+	//有效定位A2或A3,LED1和LED2一直闪
 	if(GSAMode[0] == 'A' &&(GSAMode[1] == '2' || GSAMode[1] == '3')) {
 		LedState = (LedState==1?0:1);
-		if(GpsReportRate >=3) {
-			LedCtrl(LED1,LedState);
-		}
 		LedCtrl(LED1,LedState);
+		LedCtrl(LED2,LedState);
 	} else { //无效定位
-		//检查上报率为5Hz,LED1常亮
-		if(GpsReportRate >=3) {
+		//检测有一次3HZ数据,LED1一直亮
+		if(GpsReportRate >=2) {
 			LedCtrl(LED1,1);
-		} else {
-			LedCtrl(LED1,0);
+		} else if(GpsReportRate == 0) { //无GPS数据说明已经拔掉了GPS模块
+			cnt++;
+			if(cnt > 3) {
+				LedCtrl(LED1,0);
+			}
+		} else if(GpsReportRate == 1) { //上报率通常都是1
+			cnt = 0;
 		}
 
-		//检查3颗38db以上,LED2常亮
+		//检测到2颗35DB,LED2常亮
 		if(valid_sta_count >= VALID_SAT_COUNT) {
 			LedCtrl(LED2,1);
 		} else {
@@ -164,8 +173,8 @@ void Timer1S_Init()     //timer1 callback
 {
 	u8 err;
 
-	//1100ms
-	pTimer1S = OSTmrCreate(1,11, OS_TMR_OPT_PERIODIC, (OS_TMR_CALLBACK)Timer1S_CallBack, (void *)0, "10STimer", &err);
+	//1000ms
+	pTimer1S = OSTmrCreate(1,10, OS_TMR_OPT_PERIODIC, (OS_TMR_CALLBACK)Timer1S_CallBack, (void *)0, "10STimer", &err);
 	if(err != OS_ERR_NONE)
         Log("OSTmrCreate is err!!!");
     if(OSTmrStart((OS_TMR *)pTimer1S, &err) == OS_FALSE || err != OS_ERR_NONE)
