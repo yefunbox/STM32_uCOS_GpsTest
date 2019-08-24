@@ -73,8 +73,8 @@ void NVIC_Configuration(void)
 
 #define    QTBL_SIZE                    20   //????????
 
-OS_EVENT*  g_MesgQ;                         //????
-void*      g_mesgqtbl[QTBL_SIZE];           //??????
+OS_EVENT*  gMesgQ;                         //????
+void*      gMQTbl[QTBL_SIZE];           //??????
 
 /*
 ===============================================================================
@@ -85,7 +85,7 @@ void*      g_mesgqtbl[QTBL_SIZE];           //??????
 void BuildMQ(void)
 {
 
-	g_MesgQ = OSQCreate(&g_mesgqtbl[0], QTBL_SIZE);  //???????
+	gMesgQ = OSQCreate(&gMQTbl[0], QTBL_SIZE);  //???????
 }
 
 INT32S main (void)

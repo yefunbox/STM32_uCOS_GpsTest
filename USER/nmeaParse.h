@@ -98,12 +98,15 @@ void GPS_GetTime(u8* ucDataTime);
 #define PROTOCAL_TYPE_UBLOX    2
 #define PROTOCAL_TYPE_DEBUG    3
 
+#define MAX_BUFFER_SIZE  200
+#define MAX_ARRAY        6
+
 typedef struct
 {
     u8 ProtocalType;
 	u8 size;
 	u8 flag;
-    u8 pData[100];
+    u8 pData[MAX_BUFFER_SIZE];
 }struct_gpsDataMQ;
 
 typedef struct _nmeaTIME

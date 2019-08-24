@@ -9,6 +9,9 @@ static __align(8) OS_STK         	TASK_GPS_STACK[TASK_GPS_STK_SIZE];
 #define  LED1                       1
 #define  LED2                       2
 
+#define  OFF                        0
+#define  ON                         1
+
 #define  VALID_SNR                  35
 #define  VALID_SAT_COUNT            2
 struct_SatInfo ValidSatInfo[VALID_SAT_COUNT];
@@ -21,6 +24,9 @@ nmeaPOS lastPos;
 nmeaPOS nowPos;
 double dst;
 u8 GpsReportRate = 0;
+u8 GpsGGACnt     = 0;
+u8 GpsGSACnt     = 0;
+u8 GpsGSVCnt     = 0;
 
 void handerGpsData(const char* gpsBuffer,int size);
 
@@ -37,8 +43,8 @@ void  App_GPS_TaskCreate (void) {
                           (INT8U           ) APP_TASK_BLINK_PRIO  );
 }
 
-extern OS_EVENT* g_MesgQ;
-struct_gpsDataMQ  gpsDataMQ[5];
+extern OS_EVENT* gMesgQ;
+struct_gpsDataMQ  gpsDataMQ[MAX_ARRAY];
 void parseGpsData(const u8* data,u8 size) {
     int i = 0;
 
@@ -52,11 +58,13 @@ void GPRMC_CallBack(struct_GPSRMC GPS_RMC_Data) {
 }
 void GPGGA_CallBack(struct_GPSGGA GPS_GGA_Data) {
 	//Log("Altitude:%.1fmeter",atof(GPS_GGA_Data.Altitude));
+	GpsGGACnt++;
 }
 void GPGSA_CallBack(struct_GPSGSA GPS_GSA_Data) {
    	//Log("GPGSA_CB %c%c",GPS_GSA_Data.Mode,GPS_GSA_Data.Mode2);
 	GSAMode[0] = GPS_GSA_Data.Mode;
 	GSAMode[1] = GPS_GSA_Data.Mode2;
+	GpsGSACnt++;
 }
 u8 isExist(u8 SatID) {
 	u8 i = 0;
@@ -70,7 +78,8 @@ u8 isExist(u8 SatID) {
 }
 void GPGSV_CallBack(struct_GPSGSV GPS_GSV_Data) {
 	int i;
-
+	
+	GpsGSVCnt++;
     //Log("GPGSV_CB SatInView = %d",GPS_GSV_Data.SatInView);
     for(i=0;i < 4;i++) {
        //Log("SatID=%02d,SNR=%02d",GPS_GSV_Data.SatInfo[i].SatID,GPS_GSV_Data.SatInfo[i].SNR);
@@ -130,9 +139,8 @@ void LedCtrl(u8 led,u8 onoff){
 void Timer1S_CallBack(OS_TMR *ptmr, void *parg) {
 	u8 i = 0;
 	static u8 LedState = 0;
-	static u8 cnt = 0;
 	
-	Log("1S GpsReportRate=%d,%c%c",GpsReportRate,GSAMode[0],GSAMode[1]);
+	Log("1S GpsReportRate=%d,C(%d,%d,%d),%c%c",GpsReportRate,GpsGGACnt,GpsGSACnt,GpsGSVCnt,GSAMode[0],GSAMode[1]);
 	//有效定位A2或A3,LED1和LED2一直闪
 	if(GSAMode[0] == 'A' &&(GSAMode[1] == '2' || GSAMode[1] == '3')) {
 		LedState = (LedState==1?0:1);
@@ -141,24 +149,25 @@ void Timer1S_CallBack(OS_TMR *ptmr, void *parg) {
 	} else { //无效定位
 		//检测有一次3HZ数据,LED1一直亮
 		if(GpsReportRate >=2) {
-			LedCtrl(LED1,1);
-		} else if(GpsReportRate == 0) { //无GPS数据说明已经拔掉了GPS模块
-			cnt++;
-			if(cnt > 3) {
-				LedCtrl(LED1,0);
-			}
+			LedCtrl(LED1,ON);
+		} else if((GpsReportRate + GpsGGACnt + GpsGSACnt + GpsGSVCnt) == 0) {
+			//无GPS数据说明已经拔掉了GPS模块
+			LedCtrl(LED1,OFF);
 		} else if(GpsReportRate == 1) { //上报率通常都是1
-			cnt = 0;
+
 		}
 
 		//检测到2颗35DB,LED2常亮
 		if(valid_sta_count >= VALID_SAT_COUNT) {
-			LedCtrl(LED2,1);
+			LedCtrl(LED2,ON);
 		} else {
-			LedCtrl(LED2,0);
+			LedCtrl(LED2,OFF);
 		}
 	}
-	GpsReportRate = 0;
+	GpsReportRate   = 0;
+	GpsGGACnt       = 0;
+	GpsGSACnt       = 0;
+	GpsGSVCnt       = 0;
 	valid_sta_count = 0;
 	GSAMode[1] = 0;
 	for(;i < VALID_SAT_COUNT;i++) {
@@ -191,6 +200,10 @@ static void GpsTask(void) {
 	
 	//char data[] = {"$GPRMC,085432.00,A,2234.72646,N,11354.44461,E,0.472,,050918,,,A*7B"};
    	Log("=========GPS Task Start=====");
+	
+	LedCtrl(LED1,ON);
+	LedCtrl(LED1,OFF);
+	LedCtrl(LED2,OFF);
 	initNmeaParserCallBack();
 	//_TestGPSDemo();
 	//nmea_parse_GPRMC(&data,sizeof(data),&pack);
@@ -198,8 +211,7 @@ static void GpsTask(void) {
 	USART2_Configuration();
 
    	while(1){
-		mesg = (struct_gpsDataMQ* )OSQPend(g_MesgQ, 0, &err);
-		//LedCtrl(LED1,1);
+		mesg = (struct_gpsDataMQ* )OSQPend(gMesgQ, 0, &err);
 		switch(mesg->ProtocalType) {
 			case 1:
 				mesg->pData[mesg->size] = '\0';
@@ -214,8 +226,6 @@ static void GpsTask(void) {
 				printf("MQ_type=%d,debugMode=%d,err=%d\n",mesg->ProtocalType,g_Mode,err);
 				break;
 		}
-		//LedCtrl(LED1,0);
-
    }
 }
 

@@ -1,9 +1,7 @@
 #include <includes.h> 
 
-extern OS_EVENT* g_MesgQ;
-extern struct_gpsDataMQ  gpsDataMQ[5];
-#define MAX_BUFFER_SIZE  100
-#define MAX_ARRAY        6
+extern OS_EVENT* gMesgQ;
+extern struct_gpsDataMQ  gpsDataMQ[MAX_ARRAY];
 
 static int dataIndix = 0;
 static int dataFlag = 1;
@@ -100,7 +98,7 @@ void receivOneFrameData(u8 dat) {
 		gpsDataMQ[dataFlag].size         = dataIndix;
 		gpsDataMQ[dataFlag].ProtocalType = 1;
 		gpsDataMQ[dataFlag].flag         = dataFlag;
-		OSQPost(g_MesgQ, (void*)&gpsDataMQ[dataFlag]);
+		OSQPost(gMesgQ, (void*)&gpsDataMQ[dataFlag]);
 		dataIndix = 0;
 		dataFlag = (dataFlag+1)%MAX_ARRAY;
 	} else {

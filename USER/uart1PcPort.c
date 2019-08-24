@@ -98,7 +98,7 @@ void dPuts(u8 *ptr )
 /*******************************************************************/
 char buffer[2];
 extern struct_gpsDataMQ  gpsDataMQ;
-extern OS_EVENT* g_MesgQ;
+extern OS_EVENT* gMesgQ;
 void USART1_IRQHandler(void)            //在中断服务程序中，由于主机响应中断时并不知道是哪个中断源发出中断请求，因此必须在中断服务程序中对中断源进行判别，然后分别进行处理。当然，如果只涉及到一个中断请求，是不用做上述判别的。但是无论什么情况，做上述判别是个好习惯
 {
   u8 dat;
