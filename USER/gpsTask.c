@@ -148,7 +148,7 @@ void Timer1S_CallBack(OS_TMR *ptmr, void *parg) {
 		LedCtrl(LED2,LedState);
 	} else { //无效定位
 		//检测有一次3HZ数据,LED1一直亮
-		if(GpsReportRate >=2) {
+		if(GpsReportRate >=3) {
 			LedCtrl(LED1,ON);
 		} else if((GpsReportRate + GpsGGACnt + GpsGSACnt + GpsGSVCnt) == 0) {
 			//无GPS数据说明已经拔掉了GPS模块
