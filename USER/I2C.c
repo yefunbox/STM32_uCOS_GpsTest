@@ -212,7 +212,8 @@ u8 I2C_ReadString(u8 chipAddr,u8 *buffer,u8 Number)
 u8 I2C_ReadNumber(u8 chipAddr)
 {
     u8 i;
-	u8 data[2];
+	u8 Number = 100;
+	u8 data[100];
 	
     I2C_Start();
     I2C_SendByte(chipAddr);   //发送器件地址,写数据
@@ -220,20 +221,38 @@ u8 I2C_ReadNumber(u8 chipAddr)
         printf("Wait_Ack 00 err\n");
         return 0;
     }
-	I2C_SendByte(0xFD); //Register Addressing
+	I2C_SendByte(0xFE); //Register Addressing
 	if(I2C_WaitAck()==1){
-        printf("Wait_Ack 11 err\n");
+        //printf("Wait_Ack 11 err\n");
         return 0;
     }
+	I2C_SendByte(0xFD); //Register Addressing
+	if(I2C_WaitAck()==1){
+        //printf("Wait_Ack 11 err\n");
+        return 0;
+    }
+	
+    I2C_Start();
 	I2C_SendByte(chipAddr|1);   //发送器件地址,读数据
 	if(I2C_WaitAck()==1){
         printf("Wait_Ack 22 err\n");
         return 0;
     }
-	data[0] = I2C_ReceiveByte(1);
-	data[1] = I2C_ReceiveByte(0);
+	for(i = 0;i < Number;i++) {
+		data[i] = I2C_ReceiveByte(1);
+		if(data[i] == 0xff) {
+			Number = i;
+			break;
+		}
+	}
+	data[Number] = I2C_ReceiveByte(0);
 	I2C_Stop();
-	printf("number = 0x%x,0x%x \r\n",data[0],data[1]);
+	//printf("number = 0x%x\r\n",Number);
+	for(i = 0;i <Number;i++) {
+		if((data[i] >='0' && data[i]<='9') || data[i] == '$'|| data[i] == '*'|| data[i] == ',' ||data[i] == '\n' ||(data[i] >='a' && data[i]<='z' || data[i] >='A' && data[i]<='Z')){
+			printf("%c",data[i]);
+		}
+	}
 }
 
 u8 I2C_ReadCurrentAddress(u8 chipAddr,u8 *buffer,u8 Number)
@@ -258,8 +277,9 @@ u8 I2C_ReadCurrentAddress(u8 chipAddr,u8 *buffer,u8 Number)
 	I2C_Stop();
 	//printf("data = ");
 	for(i = 0;i <Number;i++) {
-		if(data[i] != 0xff)
-		printf("%c",data[i]);
+		if((data[i] >='0' && data[i]<='9') || data[i] == '$'|| data[i] == '*'|| data[i] == ',' ||data[i] == '\n' ||(data[i] >='a' && data[i]<='z' || data[i] >='A' && data[i]<='Z')){
+			printf("%c",data[i]);
+		}
 	}
 	//printf("\r\n");
 }
